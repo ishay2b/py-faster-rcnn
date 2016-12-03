@@ -127,8 +127,85 @@ void ROIPoolingLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void ROIPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  NOT_IMPLEMENTED;
+    const Dtype* bottom_rois = bottom[1]->cpu_data();
+    const Dtype* top_diff = top[0]->cpu_diff();
+    Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+    const int count = bottom[0]->count();
+    caffe_copy(count, top_diff,bottom_diff);
+    //caffe_memset(count, Dtype(0.), bottom_diff);
+    const int* argmax_data = max_idx_.cpu_data();
+    
+    /*
+    const int nthreads = 1 ;
+    for (int i = 0 ; i < nthreads; i++) {
+    //CUDA_KERNEL_LOOP(index, nthreads) {
+        // (n, c, h, w) coords in bottom data
+        int w = index % width;
+        int h = (index / width) % height;
+        int c = (index / width / height) % channels;
+        int n = index / width / height / channels;
+        
+        Dtype gradient = 0;
+        // Accumulate gradient over all ROIs that pooled this element
+        for (int roi_n = 0; roi_n < num_rois; ++roi_n) {
+            const Dtype* offset_bottom_rois = bottom_rois + roi_n * 5;
+            int roi_batch_ind = offset_bottom_rois[0];
+            // Skip if ROI's batch index doesn't match n
+            if (n != roi_batch_ind) {
+                continue;
+            }
+            
+            int roi_start_w = round(offset_bottom_rois[1] * spatial_scale);
+            int roi_start_h = round(offset_bottom_rois[2] * spatial_scale);
+            int roi_end_w = round(offset_bottom_rois[3] * spatial_scale);
+            int roi_end_h = round(offset_bottom_rois[4] * spatial_scale);
+            
+            // Skip if ROI doesn't include (h, w)
+            const bool in_roi = (w >= roi_start_w && w <= roi_end_w &&
+                                 h >= roi_start_h && h <= roi_end_h);
+            if (!in_roi) {
+                continue;
+            }
+            
+            int offset = (roi_n * channels + c) * pooled_height * pooled_width;
+            const Dtype* offset_top_diff = top_diff + offset;
+            const int* offset_argmax_data = argmax_data + offset;
+            
+            // Compute feasible set of pooled units that could have pooled
+            // this bottom unit
+            
+            // Force malformed ROIs to be 1x1
+            int roi_width = max(roi_end_w - roi_start_w + 1, 1);
+            int roi_height = max(roi_end_h - roi_start_h + 1, 1);
+            
+            Dtype bin_size_h = static_cast<Dtype>(roi_height)
+            / static_cast<Dtype>(pooled_height);
+            Dtype bin_size_w = static_cast<Dtype>(roi_width)
+            / static_cast<Dtype>(pooled_width);
+            
+            int phstart = floor(static_cast<Dtype>(h - roi_start_h) / bin_size_h);
+            int phend = ceil(static_cast<Dtype>(h - roi_start_h + 1) / bin_size_h);
+            int pwstart = floor(static_cast<Dtype>(w - roi_start_w) / bin_size_w);
+            int pwend = ceil(static_cast<Dtype>(w - roi_start_w + 1) / bin_size_w);
+            
+            phstart = min(max(phstart, 0), pooled_height);
+            phend = min(max(phend, 0), pooled_height);
+            pwstart = min(max(pwstart, 0), pooled_width);
+            pwend = min(max(pwend, 0), pooled_width);
+            
+            for (int ph = phstart; ph < phend; ++ph) {
+                for (int pw = pwstart; pw < pwend; ++pw) {
+                    if (offset_argmax_data[ph * pooled_width + pw] == (h * width + w)) {
+                        gradient += offset_top_diff[ph * pooled_width + pw];
+                    }
+                }
+            }
+        }
+        bottom_diff[index] = gradient;
+    }*/
+    
 }
+
 
 
 #ifdef CPU_ONLY
